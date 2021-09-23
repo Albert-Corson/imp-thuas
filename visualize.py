@@ -29,47 +29,27 @@ def scatter(sheet):
     plt.show()
 
 
-def scatter_houses(houses):
+def scatter_houses(house):
     plt.grid(True)
 
-    for house in houses[18:]:
-        plt.figure(figsize=(20, 10))
+    print(f"House {house}")
+    plt.figure(figsize=(20, 10))
 
-        plt.title(f"House {house}: time differences between data measurements")
-        plt.xlabel("Date of measurement")
-        plt.ylabel("Time steps in minutes")
+    plt.title(f"House {house}: time differences between data measurements")
+    plt.xlabel("Date of measurement")
+    plt.ylabel("Time steps in minutes")
 
-        xls = Xlsx(f"./FactoryZero2019/{house}.xlsx")
+    xls = Xlsx(f"./FactoryZero2019/{house}.xlsx")
+    sheet_names = xls.get_sheets_names()
+    sheet_names_len = len(sheet_names)
 
-        for sheet_name in xls.get_sheets_names()[:3]:
-            linear_scatter(sheet_name, xls.get_sheet(sheet_name))
+    for idx, sheet_name in enumerate(sheet_names):
+        print(f"\t{idx + 1}/{sheet_names_len}")
+        linear_scatter(sheet_name, xls.get_sheet(sheet_name))
 
-        plt.legend()
-        plt.savefig(f"./visualizations/{house}.png", dpi=300)
-        plt.close()
+    plt.legend()
+    plt.savefig(f"./visualizations/{house}.png", dpi=300)
+    plt.close()
 
-
-houses = [
-    "054",
-    "105",
-    "114",
-    "115",
-    "056",
-    "099",
-    "037",
-    "041",
-    "051",
-    "100",
-    "058",
-    "057",
-    "055",
-    "053",
-    "040",
-    "108",
-    "021",
-    "026",
-    "091",
-    "060"
-]
-
-scatter_houses(houses)
+for idx in range(1, 121):
+    scatter_houses("%03d" % idx)
