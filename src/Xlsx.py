@@ -39,17 +39,3 @@ class Xlsx:
     def get_sheet_columns_names(self, name: str):
         self._sync_sheet(name)
         return self.sheets[name].columns
-
-class XlsxHouseFileIterator:
-    __current_idx = 1
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        if (self.__current_idx > 120):
-            self.__current_idx = 1
-            raise StopIteration
-        house_name = "%03d" % self.__current_idx
-        self.__current_idx += 1
-        return house_name, Xlsx(f"./FactoryZero2019/{house_name}.xlsx")
