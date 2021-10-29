@@ -1,18 +1,12 @@
 import pandas as pd
-from pipeline import parse_uploaded_file
+from parse import parse_uploaded_file
 
 
-def load_donnor(filepath: str, index_column: str, column_to_impute: str, start_timestamp: int, end_timestamp: int):
+def load_donnor(filepath: str, index_column: str, column_to_impute: str, start_timestamp: int, end_timestamp: int, sheet_name: str = None):
     with open(filepath, 'rb') as file:
         buffer = file.read()
-    donnor = parse_uploaded_file(
-        filepath, buffer, index_column, start_timestamp, end_timestamp)
-    columns_to_drop = [it for it in donnor.columns.drop(column_to_impute)]
-    donnor.drop(columns=columns_to_drop, inplace=True)
-    rows_to_drop = [it for it in donnor.index if it <
-                    start_timestamp or it > end_timestamp]
-    donnor.drop(rows_to_drop, inplace=True)
-    return donnor
+    return parse_uploaded_file(
+        filepath, buffer, index_column, column_to_impute, start_timestamp, end_timestamp, sheet_name)
 
 
 def hotdeck(df: pd.DataFrame, donnor: pd.DataFrame, gap_indices: [int], column_to_impute: str) -> pd.DataFrame:
