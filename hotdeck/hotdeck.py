@@ -139,8 +139,8 @@ def load_donor(filepath: str, index_column: str, column_to_impute: str, sheet_na
 
 
 def get_normalized_dataframe(df: pd.DataFrame, start_timestamp: int, end_timestamp: int) -> pd.DataFrame:
-    start_idx = df.index.get_loc(start_timestamp, 'pad')
-    end_idx = df.index.get_loc(end_timestamp, 'backfill')
+    start_idx = df.index.get_loc(start_timestamp if start_timestamp >= df.index[0] else df.index[0], 'pad')
+    end_idx = df.index.get_loc(end_timestamp if end_timestamp <= df.index[-1] else df.index[-1], 'backfill')
 
     cp = df[df.index >= df.index[start_idx]]
     cp = cp[cp.index <= df.index[end_idx]]
