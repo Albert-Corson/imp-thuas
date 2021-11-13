@@ -9,10 +9,13 @@ import threading
 start_time = None
 max_thread_count = 7
 fifteen_days = 1339200
+cached_donors = dict()
+cache_lock = threading.RLock()
 gap_indices_lock = threading.RLock()
 df_lock = threading.RLock()
 total_gaps = None
 df_len = None
+
 
 def hotdeck(df: pd.DataFrame, gaps_indices: [int], donors: [str], index_col: str, sheet_name: str, column_to_impute: str):
     global df_len, total_gaps, max_thread_count, start_time
@@ -117,9 +120,22 @@ def scan_donor(before_gap: pd.DataFrame, after_gap: pd.DataFrame, donor_name: st
 
 
 def load_donor(filepath: str, index_column: str, column_to_impute: str, sheet_name: str = None, start_timestamp: int = None, end_timestamp: int = None):
-    with open(filepath, 'rb') as file:
-        buffer = file.read()
-    return parse_uploaded_file(filepath, buffer, index_column, column_to_impute, sheet_name, start_timestamp, end_timestamp)
+    global cached_donors, cache_lock
+
+    with cache_lock:
+        if filepath not in cached_donors.keys():
+            with open(filepath, 'rb') as file:
+                buffer = file.read()
+                cached_donors[filepath] = parse_uploaded_file(filepath, buffer, index_column, column_to_impute, sheet_name)
+
+    df = cached_donors[filepath].copy()
+
+    if start_timestamp != None:
+        df = df[df.index >= start_timestamp]
+    if end_timestamp != None:
+        df = df[df.index <= end_timestamp]
+
+    return df
 
 
 def get_normalized_dataframe(df: pd.DataFrame, start_timestamp: int, end_timestamp: int) -> pd.DataFrame:
