@@ -24,7 +24,7 @@ def hotdeck(df: pd.DataFrame, gaps_indices: [int], donors: [str], index_col: str
     gaps = gaps_indices[:]
     start_time = datetime.now()
 
-    for idx in range(max_thread_count - 1):
+    for idx in range(max_thread_count):
         threads.append(threading.Thread(
             target=impute_gaps,
             args=(df, gaps, donors, index_col, sheet_name, column_to_impute)
@@ -47,7 +47,7 @@ def impute_gaps(df: pd.DataFrame, gaps_indices: [int], donors: [str], index_col:
 
         progress = 100 - ((len(gaps_indices) / total_gaps) * 100)
 
-        print(f"ETA: {eta}\tProgress :" + "%.2f%" % progress)
+        print(f"ETA: {eta}\tProgress :" + "%.2f%%" % progress)
 
         with gap_indices_lock:
             gap = gaps_indices.pop(0)

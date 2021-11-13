@@ -15,7 +15,7 @@ sheet_name = "smartMeter"  # For Excel files only
 column_to_impute = "power"
 start_timestamp = 1549196400
 end_timestamp = 1562281477
-donnor = "data/FactoryZero2019/099.xlsx"
+donor = "data/FactoryZero2019/099.xlsx"
 show_plots = True
 
 # Define types of gaps we want to create: each row defines a type:
@@ -74,9 +74,6 @@ for i in range(len(gaps_config)):
     dfs_with_gaps.append(gapped_df)
     gaps_indices.append(indices)
 
-
-donnor = load_donor(donnor, index_column,
-                     column_to_impute, sheet_name, start_timestamp, end_timestamp)
 
 print("Imputing...")
 for i in range(len(dfs_with_gaps)):
