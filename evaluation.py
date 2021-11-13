@@ -51,9 +51,10 @@ def error_variance(errors: [float]) -> float:
 def evaluate(df: [pd.DataFrame], imputed_dfs: [[pd.DataFrame]], gaps_config: [[float]], gaps_indices: [[int]], show_plots: bool = False):
     for i in range(len(imputed_dfs)):
         # tweak this
-        ref_values = [df.iloc[:, 0][index] for index in gaps_indices[i]]
+        flattened_indices = [it for sublist in gaps_indices[i] for it in sublist]
+        ref_values = [df.iloc[:, 0][index] for index in flattened_indices]
         pred_values = [imputed_dfs[i].iloc[:, 0][index]
-                       for index in gaps_indices[i]]
+                       for index in flattened_indices]
 
         errors = [ref_values[i] - pred_values[i]
                   for i in range(len(ref_values))]
