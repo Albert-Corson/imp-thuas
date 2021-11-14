@@ -78,9 +78,18 @@ def impute_gaps(df: pd.DataFrame, gaps_indices: [int], donors: [str], index_col:
             donor = load_donor(file, index_col, column_to_impute, sheet_name, donor_start, donor_end)
             scoreboard += scan_donor(before_gap, after_gap, file, donor, column_to_impute)
 
-        scoreboard.sort(key=lambda it: it["score"])
-
-        transpose_data(scoreboard[0], df, gap, index_col, column_to_impute, sheet_name)
+        if len(scoreboard) != 0:
+            scoreboard.sort(key=lambda it: it["score"])
+            best = scoreboard[0]
+            donor = load_donor(best["donor"], index_col, column_to_impute, sheet_name, best["start"], best["end"])
+            donor.index = donor.index + best["offsetX"]
+            donor[column_to_impute] = donor[column_to_impute] - best["offsetY"]
+            transpose_data(donor, df, gap, column_to_impute)
+        else:
+            donor = pd.DataFrame({column_to_impute: []}, index=[])
+            donor.loc[gap_start_idx] = df.loc[gap_start_idx]
+            donor.loc[gap_end_idx] = df.loc[gap_start_idx]
+            transpose_data(donor, df, gap, column_to_impute)
 
         gaps_left = len(gaps_indices)
 
@@ -164,11 +173,7 @@ def get_normalized_dataframe(df: pd.DataFrame, start_timestamp: int, end_timesta
     return cp[cp.index <= end_timestamp]
 
 
-def transpose_data(best_donor: dict, df: pd.DataFrame, gap_indices: [int], index_col: str, column_to_impute: str, sheet_name: str):
-    donor = load_donor(best_donor["donor"], index_col, column_to_impute, sheet_name, best_donor["start"], best_donor["end"])
-    donor.index = donor.index + best_donor["offsetX"]
-    donor[column_to_impute] = donor[column_to_impute] - best_donor["offsetY"]
-
+def transpose_data(donor: str, receiver: str, gap_indices: [int], column_to_impute: str):
     for gap_idx in gap_indices:
         if gap_idx not in donor.index:
             donor.loc[gap_idx] = [np.nan]
@@ -177,7 +182,7 @@ def transpose_data(best_donor: dict, df: pd.DataFrame, gap_indices: [int], index
     donor.interpolate(inplace=True)
 
     for gap_idx in gap_indices:
-        df[column_to_impute][gap_idx] = donor[column_to_impute][gap_idx]
+        receiver[column_to_impute][gap_idx] = donor[column_to_impute][gap_idx]
 
 
 def get_gap_boundaries(df: pd.DataFrame, df_len: int, gap_start_timestamp: int, gap_end_timestamp: int) -> tuple:
