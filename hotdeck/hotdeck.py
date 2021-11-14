@@ -20,18 +20,18 @@ df_len = None
 def hotdeck(df: pd.DataFrame, gaps_indices: [int], donors: [str], index_col: str, sheet_name: str, column_to_impute: str) -> pd.DataFrame:
     global df_len, total_gaps, max_thread_count, start_time
 
+    threads = []
     df_cp = df.copy()
     df_len = len(df_cp)
-    threads = []
+    gaps_cp = gaps_indices.copy()
     total_gaps = len(gaps_indices)
 
-    gaps = gaps_indices[:]
     start_time = datetime.now()
 
     for idx in range(max_thread_count):
         threads.append(threading.Thread(
             target=impute_gaps,
-            args=(df_cp, gaps, donors, index_col, sheet_name, column_to_impute)
+            args=(df_cp, gaps_cp, donors, index_col, sheet_name, column_to_impute)
             ))
         threads[idx].start()
 
@@ -51,7 +51,7 @@ def impute_gaps(df: pd.DataFrame, gaps_indices: [int], donors: [str], index_col:
         total_time_estimate = (elapsed / (total_gaps - gaps_left + 1)) * total_gaps
         eta = total_time_estimate - elapsed
 
-        progress = 100 - ((len(gaps_indices) / total_gaps) * 100)
+        progress = 100 - ((gaps_left / total_gaps) * 100)
 
         print(f"ETA: {eta}\tProgress :" + "%.2f%%" % progress)
 
@@ -83,6 +83,8 @@ def impute_gaps(df: pd.DataFrame, gaps_indices: [int], donors: [str], index_col:
         transpose_data(scoreboard[0], df, gap, index_col, column_to_impute, sheet_name)
 
         gaps_left = len(gaps_indices)
+
+    print("Time taken: " + (datetime.now() - start_time))
 
 
 def scan_donor(before_gap: pd.DataFrame, after_gap: pd.DataFrame, donor_name: str, donor: pd.DataFrame, column_to_impute: str) -> [dict]:
