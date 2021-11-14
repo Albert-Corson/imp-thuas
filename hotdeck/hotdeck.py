@@ -5,14 +5,14 @@ from parse import parse_uploaded_file
 import matplotlib.pyplot as plt
 from scipy.spatial.distance import directed_hausdorff
 import threading
+import multiprocessing
 
 start_time = None
-max_thread_count = 7
+max_thread_count = multiprocessing.cpu_count() - 1
 fifteen_days = 1339200
 cached_donors = dict()
 cache_lock = threading.RLock()
 gap_indices_lock = threading.RLock()
-df_lock = threading.RLock()
 total_gaps = None
 df_len = None
 
@@ -42,7 +42,7 @@ def hotdeck(df: pd.DataFrame, gaps_indices: [int], donors: [str], index_col: str
 
 
 def impute_gaps(df: pd.DataFrame, gaps_indices: [int], donors: [str], index_col: str, sheet_name: str, column_to_impute: str):
-    global fifteen_days, df_len, total_gaps, max_thread_count, df_lock, gap_indices_lock, start_time
+    global fifteen_days, df_len, total_gaps, max_thread_count, gap_indices_lock, start_time
 
     gaps_left = len(gaps_indices)
 
@@ -56,7 +56,7 @@ def impute_gaps(df: pd.DataFrame, gaps_indices: [int], donors: [str], index_col:
         print(f"ETA: {eta}\tProgress :" + "%.2f%%" % progress)
 
         with gap_indices_lock:
-            if (len(gaps_indices) == 0):
+            if len(gaps_indices) == 0:
                 return
             gap = gaps_indices.pop(0)
 
@@ -84,7 +84,7 @@ def impute_gaps(df: pd.DataFrame, gaps_indices: [int], donors: [str], index_col:
 
         gaps_left = len(gaps_indices)
 
-    print("Time taken: " + (datetime.now() - start_time))
+    print(f"Time taken: {(datetime.now() - start_time)}")
 
 
 def scan_donor(before_gap: pd.DataFrame, after_gap: pd.DataFrame, donor_name: str, donor: pd.DataFrame, column_to_impute: str) -> [dict]:
@@ -165,21 +165,19 @@ def get_normalized_dataframe(df: pd.DataFrame, start_timestamp: int, end_timesta
 
 
 def transpose_data(best_donor: dict, df: pd.DataFrame, gap_indices: [int], index_col: str, column_to_impute: str, sheet_name: str):
-    global df_lock
-
     donor = load_donor(best_donor["donor"], index_col, column_to_impute, sheet_name, best_donor["start"], best_donor["end"])
     donor.index = donor.index + best_donor["offsetX"]
     donor[column_to_impute] = donor[column_to_impute] - best_donor["offsetY"]
 
     for gap_idx in gap_indices:
-        donor.loc[gap_idx] = [np.nan]
+        if gap_idx not in donor.index:
+            donor.loc[gap_idx] = [np.nan]
 
     donor.sort_index(inplace=True)
     donor.interpolate(inplace=True)
 
-    with df_lock:
-        for gap_idx in gap_indices:
-            df[column_to_impute][gap_idx] = donor[column_to_impute][gap_idx]
+    for gap_idx in gap_indices:
+        df[column_to_impute][gap_idx] = donor[column_to_impute][gap_idx]
 
 
 def get_gap_boundaries(df: pd.DataFrame, df_len: int, gap_start_timestamp: int, gap_end_timestamp: int) -> tuple:
