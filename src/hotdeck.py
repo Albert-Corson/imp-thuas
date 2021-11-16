@@ -1,233 +1,222 @@
-from datetime import datetime
+from area import area
+from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
-from src.parse import parse_uploaded_file
-from scipy.spatial.distance import directed_hausdorff
 import threading
 import multiprocessing
-from area import area
-import matplotlib.pyplot as plt
+from datetime import datetime
 
-start_time = None
-max_thread_count = multiprocessing.cpu_count() - 1
-fifteen_days = 1339200
+from src.parse import parse_uploaded_file
+
 cached_donors = dict()
 cache_lock = threading.RLock()
 gap_indices_lock = threading.RLock()
-total_gaps = None
-df_len = None
+start_time = 0
+total_gaps = 0
 
 
-def hotdeck(df: pd.DataFrame, gaps_indices: [int], donors: [str], index_col: str, sheet_name: str, column_to_impute: str) -> pd.DataFrame:
-    global df_len, total_gaps, max_thread_count, start_time
+def hotdeck(receiver: pd.DataFrame, gap_indices: [int], donors: [str], index_col: str, sheet_name: str, column_to_impute: str) -> pd.DataFrame:
+    global start_time, total_gaps
 
-    threads = []
-    df_cp = df.copy()
-    df_len = len(df_cp)
-    gaps_cp = gaps_indices.copy()
-    total_gaps = len(gaps_indices)
-
+    # Init globals
+    total_gaps = len(gap_indices)
     start_time = datetime.now()
 
-    print(f"Spawning {max_thread_count - 1} more threads...")
+    threads = []
+    thread_count = multiprocessing.cpu_count() - 1
 
-    for idx in range(max_thread_count - 1):
+    receiver_cp = receiver.copy()
+    gap_indices_cp = gap_indices.copy()
+
+    print(f"Spawning {thread_count - 1} more threads...")
+    for idx in range(thread_count - 1):
         threads.append(threading.Thread(
-            target=impute_gaps,
-            args=(df_cp, gaps_cp, donors, index_col, sheet_name, column_to_impute)
+            target=impute,
+            args=(receiver_cp, gap_indices_cp, donors, index_col, sheet_name, column_to_impute)
             ))
         threads[idx].start()
 
-    impute_gaps(df_cp, gaps_cp, donors, index_col, sheet_name, column_to_impute)
+    impute(receiver_cp, gap_indices_cp, donors, index_col, sheet_name, column_to_impute)
 
     for thread in threads:
         thread.join()
 
     print(f"Time taken: {(datetime.now() - start_time)}")
 
-    return df_cp
+    return receiver_cp
 
 
-def impute_gaps(df: pd.DataFrame, gaps_indices: [int], donors: [str], index_col: str, sheet_name: str, column_to_impute: str):
-    global fifteen_days, df_len, total_gaps, max_thread_count, gap_indices_lock, start_time
+def get_normalized_dataframe(df: pd.DataFrame, start_time: int, end_time: int) -> pd.DataFrame:
+    start_idx = df.index.get_loc(start_time if start_time >= df.index[0] else df.index[0], 'pad')
+    view = df[df.index >= df.index[start_idx]]
 
-    gaps_left = len(gaps_indices)
+    if end_time < view.index[-1]:
+        end_idx = view.index.get_loc(end_time, 'bfill')
+        view = view[view.index <= view.index[end_idx]]
 
-    while gaps_left > 0:
-        if threading.current_thread() is threading.main_thread():
-            elapsed = datetime.now() - start_time
-            total_time_estimate = (elapsed / (total_gaps - gaps_left + 1)) * total_gaps
-            eta = total_time_estimate - elapsed
-            progress = 100 - ((gaps_left / total_gaps) * 100)
-            print(f"{total_gaps - gaps_left}/{total_gaps}\tElapsed: {elapsed}\tETA: {eta}\tProgress :" + "%.2f%%" % progress)
+    start_time_missing = view.index[0] != start_time
+    end_time_missing = view.index[-1] != end_time
 
-        with gap_indices_lock:
-            gaps_left = len(gaps_indices) - 1
-            if gaps_left < 0:
-                return
-            gap = gaps_indices.pop(0)
+    cp = view.copy()
 
-        gap_start_idx, gap_end_idx = get_gap_boundaries(df, df_len, gap[0], gap[-1])
-        gap_start_timestamp = df.index[gap_start_idx]
-        gap_end_timestamp = df.index[gap_end_idx]
-        gap_size = gap_end_timestamp - gap_start_timestamp
-        surrounding_size = gap_size * 1.5 if gap_size > 1800 else 1800
+    if start_time_missing or end_time_missing:
+        if start_time_missing:
+            cp.loc[start_time] = [np.nan]
+        if end_time_missing:
+            cp.loc[end_time] = [np.nan]
+        cp.sort_index(inplace=True)
+        cp.interpolate(method="index", inplace=True)
+        cp = cp[cp.index >= start_time]
+        cp = cp[cp.index <= end_time]
 
-        before_gap = get_normalized_dataframe(df, gap_start_timestamp - surrounding_size, gap_start_timestamp)
-        after_gap = get_normalized_dataframe(df, gap_end_timestamp, gap_end_timestamp + surrounding_size)
-
-        donor_start = gap_start_timestamp - (surrounding_size + 3600)
-        donor_end = gap_end_timestamp + (surrounding_size + 3600)
-
-        scoreboard = []
-
-        for file in donors:
-            donor = load_donor(file, index_col, column_to_impute, sheet_name, donor_start, donor_end)
-            scoreboard += scan_donor(before_gap, after_gap, file, donor, column_to_impute)
-
-        if len(scoreboard) != 0:
-            scoreboard.sort(key=lambda it: it["score"])
-            best = scoreboard[0]
-
-            if best["offsetX"] == 0 and best["offsetY"] != 0:
-                print(f"Bad offsetY: {best['offsetY']}")
-            elif best["offsetX"] >= 300 or best["offsetX"] <= -300:
-                print(f"Bad offsetX: {best['offsetX']}")
-
-            donor = load_donor(best["donor"], index_col, column_to_impute, sheet_name, best["start"], best["end"])
-            donor.index = donor.index + best["offsetX"]
-            donor[column_to_impute] = donor[column_to_impute] - best["offsetY"]
-        else:
-            print("No march found")
-            donor = pd.DataFrame({column_to_impute: [
-                    df[column_to_impute][gap_start_timestamp],
-                    df[column_to_impute][gap_end_timestamp]
-                ]}, index=[gap_start_timestamp, gap_end_timestamp])
-
-        transpose_data(donor, df, gap, column_to_impute)
+    return cp
 
 
-def scan_donor(before_gap: pd.DataFrame, after_gap: pd.DataFrame, donor_name: str, donor: pd.DataFrame, column_to_impute: str) -> [dict]:
-    scores = []
-    step = 300
-
-    og_before = before_gap.copy()
-    og_after = after_gap.copy()
-
-    offsetX = before_gap.index[0] - donor.index[0]
-    before_gap.index = before_gap.index - offsetX
-    after_gap.index = after_gap.index - offsetX
-
-    adjusted_offsetY = 0
-
-    while after_gap.index[-1] <= donor.index[-1]:
-        donor_before = get_normalized_dataframe(donor, before_gap.index[0], before_gap.index[-1])
-        donor_after = get_normalized_dataframe(donor, after_gap.index[0], after_gap.index[-1])
-
-        true_offsetY = get_offset_y(before_gap, after_gap, donor_before, donor_after, column_to_impute) - adjusted_offsetY
-        adjusted_offsetY += true_offsetY
-
-        before_gap[column_to_impute] = before_gap[column_to_impute] + adjusted_offsetY
-        after_gap[column_to_impute] = after_gap[column_to_impute] + adjusted_offsetY
-
-        score = get_area(before_gap, after_gap, donor_before, donor_after, column_to_impute)
-
-        score = max([
-                directed_hausdorff(before_gap, donor_before)[0] + directed_hausdorff(after_gap, donor_after)[0],
-                directed_hausdorff(donor_before, before_gap)[0] + directed_hausdorff(donor_after, after_gap)[0]
-            ])
-
-        scores.append({
-            "score": score,
-            "donor": donor_name,
-            "offsetY": true_offsetY,
-            "offsetX": offsetX,
-            "start": before_gap.index[0],
-            "end": after_gap.index[-1]
-        })
-
-        if threading.current_thread() is threading.main_thread():
-            print(score)
-            plot_comparison(donor, donor_before, donor_after, before_gap, after_gap, og_before, og_after)
-
-        # Continue
-        offsetX -= step
-        before_gap.index = before_gap.index + step
-        after_gap.index = after_gap.index + step
-
-    return scores
-
-
-def load_donor(filepath: str, index_column: str, column_to_impute: str, sheet_name: str = None, start_timestamp: int = None, end_timestamp: int = None):
+def load_donor(filepath: str, index_column: str, column_to_impute: str, sheet_name: str = None, start_time: int = None, end_time: int = None) -> None:
     global cached_donors, cache_lock
 
     with cache_lock:
         if filepath not in cached_donors.keys():
             with open(filepath, 'rb') as file:
-                buffer = file.read()
-                cached_donors[filepath] = parse_uploaded_file(filepath, buffer, index_column, column_to_impute, sheet_name)
-
-    df = cached_donors[filepath].copy()
-
-    if start_timestamp != None:
-        df = df[df.index >= start_timestamp]
-    if end_timestamp != None:
-        df = df[df.index <= end_timestamp]
-
-    return df
+                cached_donors[filepath] = parse_uploaded_file(filepath, file.read(), index_column, column_to_impute, sheet_name)
+    donor = cached_donors[filepath].copy()
+    if start_time != None:
+        donor = donor[donor.index >= start_time]
+    if end_time != None:
+        donor = donor[donor.index <= end_time]
+    return donor
 
 
-def get_normalized_dataframe(df: pd.DataFrame, start_timestamp: int, end_timestamp: int) -> pd.DataFrame:
-    start_idx = df.index.get_loc(start_timestamp if start_timestamp >= df.index[0] else df.index[0], 'pad')
-    end_idx = df.index.get_loc(end_timestamp if end_timestamp <= df.index[-1] else df.index[-1], 'backfill')
-
-    cp = df[df.index >= df.index[start_idx]]
-    cp = cp[cp.index <= df.index[end_idx]]
-
-    if cp.index[0] != start_timestamp:
-        cp.loc[start_timestamp] = [np.nan]
-    if cp.index[-1] != end_timestamp:
-        cp.loc[end_timestamp] = [np.nan]
-
-    cp.sort_index(inplace=True)
-    cp.interpolate(inplace=True)
-
-    cp = cp[cp.index >= start_timestamp]
-    return cp[cp.index <= end_timestamp]
-
-
-def transpose_data(donor: str, receiver: str, gap_indices: [int], column_to_impute: str):
+def transpose_data(donor: str, receiver: str, gap_indices: [int], column_to_impute: str) -> None:
     for gap_idx in gap_indices:
         if gap_idx not in donor.index:
             donor.loc[gap_idx] = [np.nan]
 
     donor.sort_index(inplace=True)
-    donor.interpolate(inplace=True)
+    donor.interpolate(method="index", inplace=True)
 
     for gap_idx in gap_indices:
         receiver[column_to_impute][gap_idx] = donor[column_to_impute][gap_idx]
 
 
-def get_gap_boundaries(df: pd.DataFrame, df_len: int, gap_start_timestamp: int, gap_end_timestamp: int) -> tuple:
-    gap_start_idx = df.index.get_loc(gap_start_timestamp) - 1
-    gap_end_idx = df.index.get_loc(gap_end_timestamp) + 1
+def get_gap_boundaries(df: pd.DataFrame, gap_start_time: int, gap_end_time: int) -> tuple:
+    gap_start_idx = df.index.get_loc(gap_start_time) - 1
+    gap_end_idx = df.index.get_loc(gap_end_time) + 1
 
     if gap_start_idx < 0:
         gap_start_idx = 0
-    if gap_end_idx >= df_len:
-        gap_end_idx = df_len - 1
+    if gap_end_idx >= len(df):
+        gap_end_idx = len(df) - 1
 
     return gap_start_idx, gap_end_idx
 
 
-def get_area(before_gap: pd.DataFrame, after_gap: pd.DataFrame, donor_before: pd.DataFrame, donor_after: pd.DataFrame, column_to_impute: str) -> float:
-    area1 = get_sub_area(before_gap, donor_before, column_to_impute)
-    if f"{area1}" == "nan":
-        area1 = get_sub_area(donor_before, before_gap, column_to_impute)
+def pop_gap(gap_indices: [[int]]) -> [int]:
+    global gap_indices_lock
 
-    area2 = get_sub_area(after_gap, donor_after, column_to_impute)
+    with gap_indices_lock:
+        gaps_left = len(gap_indices) - 1
+        if gaps_left > 0:
+            return gap_indices.pop(0)
+    return None
+
+
+def fill_gap(receiver: pd.DataFrame, gap: [int], gap_start_time:int, gap_end_time: int, scoreboard: [dict], index_col: str, column_to_impute: str, sheet_name: str) -> None:
+    if len(scoreboard) != 0:
+        scoreboard.sort(key=lambda it: it["score"])
+        best = scoreboard[0]
+        assert best["offsetX"] < 300 and best["offsetX"] > -300 and best["offsetY"] == 0, f"Bad match: X={best['offsetX']}\tY={best['offsetY']}" # TODO remove
+        donor = load_donor(best["filename"], index_col, column_to_impute, sheet_name, best["start"], best["end"])
+        donor.index = donor.index + best["offsetX"]
+        donor[column_to_impute] = donor[column_to_impute] - best["offsetY"]
+    else:
+        assert False, "No match found" # TODO remove
+        donor = pd.DataFrame({
+            column_to_impute: [
+                receiver[column_to_impute][gap_start_time],
+                receiver[column_to_impute][gap_end_time]
+            ]},
+            index=[gap_start_time, gap_end_time]
+        )
+
+    transpose_data(donor, receiver, gap, column_to_impute)
+
+
+def impute(receiver: pd.DataFrame, gap_indices: [[int]], donors: [str], index_col: str, sheet_name: str, column_to_impute: str) -> None:
+    while (gap := pop_gap(gap_indices)) != None:
+        print_progress(len(gap_indices))
+
+        gap_start_idx, gap_end_idx = get_gap_boundaries(receiver, gap[0], gap[-1])
+        gap_start_time = receiver.index[gap_start_idx]
+        gap_end_time = receiver.index[gap_end_idx]
+        gap_duration = gap_end_time - gap_start_time
+
+        sampling_duration = gap_duration * 1.5 if gap_duration > 1800 else 1800
+
+        before = get_normalized_dataframe(receiver, gap_start_time - sampling_duration, gap_start_time)
+        after = get_normalized_dataframe(receiver, gap_end_time, gap_end_time + sampling_duration)
+
+        donor_start_time = gap_start_time - (sampling_duration + 3600)
+        donor_end_time = gap_end_time + (sampling_duration + 3600)
+
+        scoreboard = []
+
+        for file in donors:
+            donor = load_donor(file, index_col, column_to_impute, sheet_name, donor_start_time, donor_end_time)
+            scoreboard += scan_donor(before, after, file, donor, column_to_impute)
+
+        fill_gap(receiver, gap, gap_start_time, gap_end_time, scoreboard, index_col, column_to_impute, sheet_name)
+
+
+def scan_donor(before: pd.DataFrame, after: pd.DataFrame, donor_filename: str, donor: pd.DataFrame, column_to_impute: str) -> [dict]:
+    scores = []
+    step = 300
+    adjusted_offset_y = 0
+
+    # Shift the comparison sample the start of the donor sample
+    offset_x = before.index[0] - donor.index[0]
+    offset_x -= offset_x % step
+    before.index = before.index - offset_x
+    after.index = after.index - offset_x
+
+    while after.index[-1] <= donor.index[-1]:
+        # Donor comparison samples
+        donor_before = get_normalized_dataframe(donor, before.index[0], before.index[-1])
+        donor_after = get_normalized_dataframe(donor, after.index[0], after.index[-1])
+
+        # We need to take into account the previous Y-axis shifting
+        offset_y = get_offset_y(before, after, donor_before, donor_after, column_to_impute) - adjusted_offset_y
+        adjusted_offset_y += offset_y
+
+        # Apply the offset
+        before[column_to_impute] = before[column_to_impute] + adjusted_offset_y
+        after[column_to_impute] = after[column_to_impute] + adjusted_offset_y
+
+        scores.append({
+            "score": get_similarity_score(before, after, donor_before, donor_after, column_to_impute),
+            "offsetX": offset_x,
+            "offsetY": offset_y,
+            "start": before.index[0],
+            "end": after.index[-1],
+            "filename": donor_filename
+        })
+
+        # Shift the comparison sample to the next step
+        offset_x -= step
+        before.index = before.index + step
+        after.index = after.index + step
+
+    return scores
+
+
+def get_area(before: pd.DataFrame, after: pd.DataFrame, donor_before: pd.DataFrame, donor_after: pd.DataFrame, column_to_impute: str) -> float:
+    area1 = get_sub_area(before, donor_before, column_to_impute)
+    if f"{area1}" == "nan":
+        area1 = get_sub_area(donor_before, before, column_to_impute)
+
+    area2 = get_sub_area(after, donor_after, column_to_impute)
     if f"{area2}" == "nan":
-        area2 = get_sub_area(donor_after, after_gap, column_to_impute)
+        area2 = get_sub_area(donor_after, after, column_to_impute)
 
     return area1 + area2
 
@@ -243,20 +232,41 @@ def get_sub_area(first, second, column_to_impute):
     return area({'type': 'Polygon', 'coordinates': [points]})
 
 
-def get_offset_y(before_gap, after_gap, donor_before, donor_after, column_to_impute):
-    donor_y2 = donor_after[column_to_impute][donor_after.index[0]]
-    donor_y2 += donor_after[column_to_impute][donor_after.index[-1]]
-    donor_y2 += donor_before[column_to_impute][donor_before.index[0]]
-    donor_y2 += donor_before[column_to_impute][donor_before.index[-1]]
-    donor_y2 /= 4
+def get_offset_y(before_gap, after_gap, donor_before, donor_after, column_to_impute) -> None:
+    # TODO tweak this
+    donor_y = donor_after[column_to_impute][donor_after.index[0]]
+    donor_y += donor_after[column_to_impute][donor_after.index[-1]]
+    donor_y += donor_before[column_to_impute][donor_before.index[0]]
+    donor_y += donor_before[column_to_impute][donor_before.index[-1]]
+    donor_y /= 4
 
-    gap_y2 = after_gap[column_to_impute][after_gap.index[0]]
-    gap_y2 += after_gap[column_to_impute][after_gap.index[-1]]
-    gap_y2 += before_gap[column_to_impute][before_gap.index[0]]
-    gap_y2 += before_gap[column_to_impute][before_gap.index[-1]]
-    gap_y2 /= 4
+    gap_y = after_gap[column_to_impute][after_gap.index[0]]
+    gap_y += after_gap[column_to_impute][after_gap.index[-1]]
+    gap_y += before_gap[column_to_impute][before_gap.index[0]]
+    gap_y += before_gap[column_to_impute][before_gap.index[-1]]
+    gap_y /= 4
 
-    return donor_y2 - gap_y2
+    return donor_y - gap_y
+
+
+def get_similarity_score(before: pd.DataFrame, after: pd.DataFrame, donor_before: pd.DataFrame, donor_after: pd.DataFrame, column_to_impute: str) -> float:
+    # TODO tweak this
+    # return max([
+    #         directed_hausdorff(before_gap, donor_before)[0] + directed_hausdorff(after_gap, donor_after)[0],
+    #         directed_hausdorff(donor_before, before_gap)[0] + directed_hausdorff(donor_after, after_gap)[0]
+    #     ])
+    return get_area(before, after, donor_before, donor_after, column_to_impute)
+
+
+def print_progress(gaps_left: int) -> None:
+    global start_time, total_gaps
+
+    if threading.current_thread() is threading.main_thread():
+        elapsed = datetime.now() - start_time
+        total_time_estimate = (elapsed / (total_gaps - gaps_left + 1)) * total_gaps
+        eta = total_time_estimate - elapsed
+        progress = 100 - ((gaps_left / total_gaps) * 100)
+        print(f"{total_gaps - gaps_left}/{total_gaps}\tElapsed: {elapsed}\tETA: {eta}\tProgress :" + "%.2f%%" % progress)
 
 
 def plot_comparison(donor, donor_before, donor_after, before, after, og_before, og_after):
@@ -275,5 +285,5 @@ def plot_comparison(donor, donor_before, donor_after, before, after, og_before, 
     plt.plot(before, ":r", label="Comparison sample")
     plt.plot(after, ":r")
 
-    plt.legend()
+    plt.legend(loc=1)
     plt.show()
