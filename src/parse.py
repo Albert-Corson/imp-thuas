@@ -1,7 +1,7 @@
 import io
 import os
 import pandas as pd
-from date_parsers import custom_knmi_date_parser, date_parser, factoryzero_date_parser, knmi_date_parser
+from src.date_parsers import date_parser, factoryzero_date_parser
 
 
 def parse_csv(buffer: bytes, index_column: str, separator: str = ',') -> pd.DataFrame:

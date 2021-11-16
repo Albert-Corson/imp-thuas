@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from plot import plot_error_distribution
+from src.plot import plot_error_distribution
 
 
 def pretty_print(d, indent=0):

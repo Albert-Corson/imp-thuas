@@ -3,11 +3,10 @@ import numpy as np
 import pandas as pd
 import random
 
-from evaluation import evaluate
-from hotdeck.hotdeck import hotdeck, load_donor
-from parse import parse_uploaded_file
-from plot import plot_imputation, show_all_plots
-from interpolate import interpolate
+from src.evaluation import evaluate
+from src.hotdeck import hotdeck
+from src.parse import parse_uploaded_file
+from src.plot import plot_imputation, show_all_plots
 
 filepath = "data/FactoryZero2019/054.xlsx"
 index_column = "Timestamp"
@@ -15,7 +14,7 @@ sheet_name = "smartMeter"  # For Excel files only
 column_to_impute = "power"
 start_timestamp = 1549196400
 end_timestamp = 1562281477
-donor = "data/FactoryZero2019/099.xlsx"
+donors = ["data/FactoryZero2019/054.xlsx"]
 show_plots = True
 
 # Define types of gaps we want to create: each row defines a type:
@@ -40,8 +39,7 @@ random.seed(7094400398089273)
 def create_gaps(df: pd.DataFrame, gaps_ratio: float, min_gap_size: int, max_gap_size: int):
     indices_to_remove: [int] = []
     df_with_gaps = df.copy()
-    gaps_locations = sorted(random.sample(
-        range(1, len(df) + 1), int(len(df) * gaps_ratio)))
+    gaps_locations = sorted(random.sample(range(1, len(df) + 1), int(len(df) * gaps_ratio)))
 
     for gap_start in gaps_locations:
         # TODO: remove gaps too close to each other
@@ -77,8 +75,7 @@ for i in range(len(gaps_config)):
 
 print("Imputing...")
 for i in range(len(dfs_with_gaps)):
-    imputed_dfs.append(hotdeck(dfs_with_gaps[i], gaps_indices[i], [
-            "data/FactoryZero2019/054.xlsx"], index_column, sheet_name, column_to_impute))
+    imputed_dfs.append(hotdeck(dfs_with_gaps[i], gaps_indices[i], donors, index_column, sheet_name, column_to_impute))
 
 
 print("Evaluating...")
