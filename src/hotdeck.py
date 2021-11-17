@@ -1,10 +1,10 @@
 from area import area
-from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
 import threading
 import multiprocessing
 from datetime import datetime
+from scipy.spatial.distance import directed_hausdorff
 
 from src.parse import parse_uploaded_file
 
@@ -18,13 +18,18 @@ total_gaps = 0
 def hotdeck(receiver: pd.DataFrame, gap_indices: [int], donors: [str], index_col: str, sheet_name: str, column_to_impute: str) -> pd.DataFrame:
     global start_time, total_gaps
 
-    # Init globals
+    # Init global variables
     total_gaps = len(gap_indices)
     start_time = datetime.now()
 
+    print("Hotdeck starting, loading donors...")
+    for file in donors:
+        load_donor(file, index_col, column_to_impute, sheet_name)
+    print(f"{len(donors)} donors loaded in {datetime.now() - start_time}")
+
+    start_time = datetime.now()
     threads = []
     thread_count = multiprocessing.cpu_count() - 1
-
     receiver_cp = receiver.copy()
     gap_indices_cp = gap_indices.copy()
 
@@ -115,7 +120,7 @@ def pop_gap(gap_indices: [[int]]) -> [int]:
     global gap_indices_lock
 
     with gap_indices_lock:
-        gaps_left = len(gap_indices) - 1
+        gaps_left = len(gap_indices)
         if gaps_left > 0:
             return gap_indices.pop(0)
     return None
@@ -125,12 +130,10 @@ def fill_gap(receiver: pd.DataFrame, gap: [int], gap_start_time:int, gap_end_tim
     if len(scoreboard) != 0:
         scoreboard.sort(key=lambda it: it["score"])
         best = scoreboard[0]
-        assert best["offsetX"] < 300 and best["offsetX"] > -300 and best["offsetY"] == 0, f"Bad match: X={best['offsetX']}\tY={best['offsetY']}" # TODO remove
         donor = load_donor(best["filename"], index_col, column_to_impute, sheet_name, best["start"], best["end"])
-        donor.index = donor.index + best["offsetX"]
-        donor[column_to_impute] = donor[column_to_impute] - best["offsetY"]
+        donor.index = donor.index + best["x_offset"]
+        donor[column_to_impute] = donor[column_to_impute] - best["y_offset"]
     else:
-        assert False, "No match found" # TODO remove
         donor = pd.DataFrame({
             column_to_impute: [
                 receiver[column_to_impute][gap_start_time],
@@ -149,15 +152,14 @@ def impute(receiver: pd.DataFrame, gap_indices: [[int]], donors: [str], index_co
         gap_start_idx, gap_end_idx = get_gap_boundaries(receiver, gap[0], gap[-1])
         gap_start_time = receiver.index[gap_start_idx]
         gap_end_time = receiver.index[gap_end_idx]
-        gap_duration = gap_end_time - gap_start_time
 
-        sampling_duration = gap_duration * 1.5 if gap_duration > 1800 else 1800
+        duration_before, duration_after = get_sampling_durations(receiver, column_to_impute, gap_start_idx, gap_end_idx, gap_start_time, gap_end_time)
 
-        before = get_normalized_dataframe(receiver, gap_start_time - sampling_duration, gap_start_time)
-        after = get_normalized_dataframe(receiver, gap_end_time, gap_end_time + sampling_duration)
+        before = get_normalized_dataframe(receiver, gap_start_time - duration_before, gap_start_time)
+        after = get_normalized_dataframe(receiver, gap_end_time, gap_end_time + duration_after)
 
-        donor_start_time = gap_start_time - (sampling_duration + 3600)
-        donor_end_time = gap_end_time + (sampling_duration + 3600)
+        donor_start_time = gap_start_time - (duration_before + 3600)
+        donor_end_time = gap_end_time + (duration_after + 3600)
 
         scoreboard = []
 
@@ -171,13 +173,14 @@ def impute(receiver: pd.DataFrame, gap_indices: [[int]], donors: [str], index_co
 def scan_donor(before: pd.DataFrame, after: pd.DataFrame, donor_filename: str, donor: pd.DataFrame, column_to_impute: str) -> [dict]:
     scores = []
     step = 300
-    adjusted_offset_y = 0
+
+    original_sample_mean = (before[column_to_impute].mean() + after[column_to_impute].mean()) / 2
 
     # Shift the comparison sample the start of the donor sample
-    offset_x = before.index[0] - donor.index[0]
-    offset_x -= offset_x % step
-    before.index = before.index - offset_x
-    after.index = after.index - offset_x
+    x_offset = before.index[0] - donor.index[0]
+    x_offset -= x_offset % step
+    before.index = before.index - x_offset
+    after.index = after.index - x_offset
 
     while after.index[-1] <= donor.index[-1]:
         # Donor comparison samples
@@ -185,28 +188,49 @@ def scan_donor(before: pd.DataFrame, after: pd.DataFrame, donor_filename: str, d
         donor_after = get_normalized_dataframe(donor, after.index[0], after.index[-1])
 
         # We need to take into account the previous Y-axis shifting
-        offset_y = get_offset_y(before, after, donor_before, donor_after, column_to_impute) - adjusted_offset_y
-        adjusted_offset_y += offset_y
+        y_offset, adjusted_y_offset = get_y_offsets(original_sample_mean, before, after, donor_before, donor_after, column_to_impute)
 
         # Apply the offset
-        before[column_to_impute] = before[column_to_impute] + adjusted_offset_y
-        after[column_to_impute] = after[column_to_impute] + adjusted_offset_y
+        before[column_to_impute] = before[column_to_impute] + adjusted_y_offset
+        after[column_to_impute] = after[column_to_impute] + adjusted_y_offset
 
         scores.append({
             "score": get_similarity_score(before, after, donor_before, donor_after, column_to_impute),
-            "offsetX": offset_x,
-            "offsetY": offset_y,
+            "x_offset": x_offset,
+            "y_offset": y_offset,
             "start": before.index[0],
             "end": after.index[-1],
             "filename": donor_filename
         })
 
         # Shift the comparison sample to the next step
-        offset_x -= step
+        x_offset -= step
         before.index = before.index + step
         after.index = after.index + step
 
     return scores
+
+
+def get_sampling_durations(receiver: pd.DataFrame, col_to_impute: str, gap_start_idx: int, gap_end_idx: int, gap_start_time: int, gap_end_time: int) -> tuple:
+    gap_duration = gap_end_time - gap_start_time
+    max_duration = gap_duration * 1.5 if gap_duration > 1800 else 1800
+    index_count = len(receiver.index)
+
+    duration_before = 0
+    while gap_start_idx > 0 \
+            and duration_before < max_duration \
+            and np.isnan(receiver[col_to_impute][receiver.index[gap_start_idx]]) == False:
+        duration_before = gap_start_time - receiver.index[gap_start_idx]
+        gap_start_idx -= 1
+
+    duration_after = 0
+    while gap_end_idx < index_count \
+            and duration_after < max_duration \
+            and np.isnan(receiver[col_to_impute][receiver.index[gap_end_idx]]) == False:
+        duration_after = receiver.index[gap_end_idx] - gap_end_time
+        gap_end_idx += 1
+
+    return duration_before, duration_after
 
 
 def get_area(before: pd.DataFrame, after: pd.DataFrame, donor_before: pd.DataFrame, donor_after: pd.DataFrame, column_to_impute: str) -> float:
@@ -232,30 +256,19 @@ def get_sub_area(first, second, column_to_impute):
     return area({'type': 'Polygon', 'coordinates': [points]})
 
 
-def get_offset_y(before_gap, after_gap, donor_before, donor_after, column_to_impute) -> None:
-    # TODO tweak this
-    donor_y = donor_after[column_to_impute][donor_after.index[0]]
-    donor_y += donor_after[column_to_impute][donor_after.index[-1]]
-    donor_y += donor_before[column_to_impute][donor_before.index[0]]
-    donor_y += donor_before[column_to_impute][donor_before.index[-1]]
-    donor_y /= 4
-
-    gap_y = after_gap[column_to_impute][after_gap.index[0]]
-    gap_y += after_gap[column_to_impute][after_gap.index[-1]]
-    gap_y += before_gap[column_to_impute][before_gap.index[0]]
-    gap_y += before_gap[column_to_impute][before_gap.index[-1]]
-    gap_y /= 4
-
-    return donor_y - gap_y
+def get_y_offsets(original_sample_mean, before, after, donor_before, donor_after, column_to_impute) -> tuple:
+    mean_receiver = (before[column_to_impute].mean() + after[column_to_impute].mean()) / 2
+    mean_donor = (donor_before[column_to_impute].mean() + donor_after[column_to_impute].mean()) / 2
+    adjusted_y_offset = mean_donor - mean_receiver
+    y_offset = adjusted_y_offset - (original_sample_mean - mean_receiver)
+    return y_offset, adjusted_y_offset
 
 
 def get_similarity_score(before: pd.DataFrame, after: pd.DataFrame, donor_before: pd.DataFrame, donor_after: pd.DataFrame, column_to_impute: str) -> float:
-    # TODO tweak this
-    # return max([
-    #         directed_hausdorff(before_gap, donor_before)[0] + directed_hausdorff(after_gap, donor_after)[0],
-    #         directed_hausdorff(donor_before, before_gap)[0] + directed_hausdorff(donor_after, after_gap)[0]
-    #     ])
-    return get_area(before, after, donor_before, donor_after, column_to_impute)
+    return max([
+            directed_hausdorff(before, donor_before)[0] + directed_hausdorff(after, donor_after)[0],
+            directed_hausdorff(donor_before, before)[0] + directed_hausdorff(donor_after, after)[0]
+        ])
 
 
 def print_progress(gaps_left: int) -> None:
@@ -267,23 +280,3 @@ def print_progress(gaps_left: int) -> None:
         eta = total_time_estimate - elapsed
         progress = 100 - ((gaps_left / total_gaps) * 100)
         print(f"{total_gaps - gaps_left}/{total_gaps}\tElapsed: {elapsed}\tETA: {eta}\tProgress :" + "%.2f%%" % progress)
-
-
-def plot_comparison(donor, donor_before, donor_after, before, after, og_before, og_after):
-    mng = plt.get_current_fig_manager()
-    mng.full_screen_toggle()
-    plt.grid(True)
-
-    plt.plot(donor, color="b", label="Full donor")
-
-    plt.plot(og_before, "g", label="Best match")
-    plt.plot(og_after, "g")
-
-    plt.plot(donor_before, "--c", label="Donor sample")
-    plt.plot(donor_after, "--c")
-
-    plt.plot(before, ":r", label="Comparison sample")
-    plt.plot(after, ":r")
-
-    plt.legend(loc=1)
-    plt.show()

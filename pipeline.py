@@ -37,16 +37,20 @@ random.seed(7094400398089273)
 
 
 def create_gaps(df: pd.DataFrame, gaps_ratio: float, min_gap_size: int, max_gap_size: int):
+    min_gap_distance = 5
     indices_to_remove: [int] = []
     df_with_gaps = df.copy()
     gaps_locations = sorted(random.sample(range(1, len(df) + 1), int(len(df) * gaps_ratio)))
 
-    for gap_start in gaps_locations:
-        # TODO: remove gaps too close to each other
-        gap_end = min(gap_start + random.randrange(min_gap_size,
-                      max_gap_size), len(df) - 1)
-        indices_to_remove.append(sorted([df.index[i] for i in range(gap_start, gap_end)]))
-        df_with_gaps.loc[indices_to_remove[-1], :] = np.nan
+    for i, gap_start in enumerate(gaps_locations):
+        gap_end = min(gap_start + random.randrange(min_gap_size, max_gap_size), len(df) - 1)
+
+        if len(gaps_locations) >= i + 2 and gap_end + min_gap_distance >= gaps_locations[i + 1]:
+            # gaps are too close to each other -> ignore
+            continue
+
+        indices_to_remove.append([df.index[i] for i in range(gap_start, gap_end)])
+        df_with_gaps.loc[indices_to_remove[-1]] = [np.nan]
 
     return df_with_gaps, indices_to_remove
 
