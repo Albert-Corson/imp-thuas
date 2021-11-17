@@ -68,7 +68,7 @@ def impute(receiver: pd.DataFrame, gap_indices: [[int]], donors: [str], col_to_i
 
         for file in donors:
             donor = get_donor(file, donor_start_time, donor_end_time)
-            scoreboard += scan_donor(before, after, file, donor, col_to_impute)
+            scoreboard += scan_donor(before.copy(), after.copy(), file, donor, col_to_impute)
 
         fill_gap(receiver, gap, gap_start_time, gap_end_time, scoreboard, col_to_impute)
 
