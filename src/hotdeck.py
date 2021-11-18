@@ -13,6 +13,10 @@ gap_indices_lock = threading.RLock()
 start_time = 0
 total_gaps = 0
 
+# Config
+step = 300
+surrounding_duration = 3600
+
 
 def hotdeck(receiver: pd.DataFrame, gap_indices: [int], donors: [str], sheet_name: str, index_col: str, col_to_impute: str) -> pd.DataFrame:
     global start_time, total_gaps
@@ -48,6 +52,8 @@ def hotdeck(receiver: pd.DataFrame, gap_indices: [int], donors: [str], sheet_nam
 
 
 def impute(receiver: pd.DataFrame, gap_indices: [[int]], donors: [str], col_to_impute: str) -> None:
+    global surrounding_duration
+
     while (gap := pop_gap(gap_indices)) != None:
         print_progress(len(gap_indices))
 
@@ -61,8 +67,8 @@ def impute(receiver: pd.DataFrame, gap_indices: [[int]], donors: [str], col_to_i
         before = get_normalized_dataframe(receiver, gap_start_time - duration_before, gap_start_time)
         after = get_normalized_dataframe(receiver, gap_end_time, gap_end_time + duration_after)
 
-        donor_start_time = gap_start_time - (duration_before + 3600)
-        donor_end_time = gap_end_time + (duration_after + 3600)
+        donor_start_time = gap_start_time - (duration_before + surrounding_duration)
+        donor_end_time = gap_end_time + (duration_after + surrounding_duration)
 
         scoreboard = []
 
@@ -74,9 +80,9 @@ def impute(receiver: pd.DataFrame, gap_indices: [[int]], donors: [str], col_to_i
 
 
 def scan_donor(before: pd.DataFrame, after: pd.DataFrame, donor_filename: str, donor: pd.DataFrame, col_to_impute: str) -> [dict]:
-    scores = []
-    step = 300
+    global step
 
+    scores = []
     original_sample_mean = (before[col_to_impute].mean() + after[col_to_impute].mean()) / 2
 
     # Shift the comparison sample the start of the donor sample
@@ -113,6 +119,32 @@ def scan_donor(before: pd.DataFrame, after: pd.DataFrame, donor_filename: str, d
         after.index = after.index + step
 
     return scores
+
+
+def fill_gap(receiver: pd.DataFrame, gap: [int], gap_start_time: int, gap_end_time: int, scoreboard: [dict], col_to_impute: str) -> None:
+    if len(scoreboard) != 0:
+        scoreboard.sort(key=lambda it: it["score"])
+        best = scoreboard[0]
+        donor = get_donor(best["filename"], best["start"], best["end"])
+        donor.index = donor.index + best["x_offset"]
+        donor[col_to_impute] = donor[col_to_impute] - best["y_offset"]
+    else:
+        donor = pd.DataFrame({
+            col_to_impute: [
+                receiver[col_to_impute][gap_start_time],
+                receiver[col_to_impute][gap_end_time]
+            ]},
+            index=[gap_start_time, gap_end_time]
+        )
+
+    transpose_data(donor, receiver, gap, col_to_impute)
+
+
+def get_similarity_score(before: pd.DataFrame, after: pd.DataFrame, donor_before: pd.DataFrame, donor_after: pd.DataFrame) -> float:
+    return max([
+        directed_hausdorff(before, donor_before)[0] + directed_hausdorff(after, donor_after)[0],
+        directed_hausdorff(donor_before, before)[0] + directed_hausdorff(donor_after, after)[0]
+    ])
 
 
 def get_y_offsets(original_sample_mean: float, before: pd.DataFrame, after: pd.DataFrame, donor_before: pd.DataFrame, donor_after: pd.DataFrame, col_to_impute: str) -> tuple:
@@ -201,25 +233,6 @@ def pop_gap(gap_indices: [[int]]) -> [int]:
     return None
 
 
-def fill_gap(receiver: pd.DataFrame, gap: [int], gap_start_time: int, gap_end_time: int, scoreboard: [dict], col_to_impute: str) -> None:
-    if len(scoreboard) != 0:
-        scoreboard.sort(key=lambda it: it["score"])
-        best = scoreboard[0]
-        donor = get_donor(best["filename"], best["start"], best["end"])
-        donor.index = donor.index + best["x_offset"]
-        donor[col_to_impute] = donor[col_to_impute] - best["y_offset"]
-    else:
-        donor = pd.DataFrame({
-            col_to_impute: [
-                receiver[col_to_impute][gap_start_time],
-                receiver[col_to_impute][gap_end_time]
-            ]},
-            index=[gap_start_time, gap_end_time]
-        )
-
-    transpose_data(donor, receiver, gap, col_to_impute)
-
-
 def get_sampling_durations(receiver: pd.DataFrame, col_to_impute: str, gap_start_idx: int, gap_end_idx: int, gap_start_time: int, gap_end_time: int) -> tuple:
     gap_duration = gap_end_time - gap_start_time
     max_duration = gap_duration * 1.5 if gap_duration > 1800 else 1800
@@ -240,13 +253,6 @@ def get_sampling_durations(receiver: pd.DataFrame, col_to_impute: str, gap_start
         gap_end_idx += 1
 
     return duration_before, duration_after
-
-
-def get_similarity_score(before: pd.DataFrame, after: pd.DataFrame, donor_before: pd.DataFrame, donor_after: pd.DataFrame) -> float:
-    return max([
-            directed_hausdorff(before, donor_before)[0] + directed_hausdorff(after, donor_after)[0],
-            directed_hausdorff(donor_before, before)[0] + directed_hausdorff(donor_after, after)[0]
-        ])
 
 
 def get_area(before: pd.DataFrame, after: pd.DataFrame, donor_before: pd.DataFrame, donor_after: pd.DataFrame, col_to_impute: str) -> float:
