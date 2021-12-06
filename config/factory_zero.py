@@ -3,7 +3,7 @@ from datetime import timedelta
 
 
 def factoryzero_date_parser(df: pd.DataFrame) -> pd.DataFrame:
-    df["Timestamp"] = pd.to_datetime(df["Timestamp"], unit='s')
+    df["Timestamp"] = pd.to_datetime(df["Timestamp"], unit='s').round('min')
     df = df.set_index("Timestamp")
     return df
 
