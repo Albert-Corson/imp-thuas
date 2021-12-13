@@ -12,11 +12,11 @@ config = {
     "date_parser": factoryzero_date_parser,
     "min_gap_distance": 5,
     "gaps": [
-        [1,       60/5,     0.15],
-        [60/5,    60/5*6,   0.05],
-        [60/5*6,  60/5*24,  0.015],
-        [60/5*24, 60/5*72,  0.005],
-        [60/5*72, 60/5*168, 0.001]
+        [timedelta(minutes=5),   timedelta(hours=1),     0.15],
+        [timedelta(hours=1),     timedelta(hours=6),     0.05],
+        [timedelta(hours=6),     timedelta(hours=24),    0.015],
+        [timedelta(hours=24),    timedelta(hours=72),    0.005],
+        [timedelta(hours=72),    timedelta(hours=168),   0.001]
     ],
     "timedelta": timedelta(minutes=5)
 }

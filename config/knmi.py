@@ -15,10 +15,10 @@ config = {
     "date_parser": knmi_date_parser,
     "min_gap_distance": 1,
     "gaps": [
-        [1,  6,   0.15],
-        [6,  24,  0.05],
-        [24, 72,  0.015],
-        [72, 168, 0.005]
+        [timedelta(hours=1),  timedelta(hours=6),   0.15],
+        [timedelta(hours=6),  timedelta(hours=24),  0.05],
+        [timedelta(hours=24), timedelta(hours=72),  0.015],
+        [timedelta(hours=72), timedelta(hours=168), 0.005]
     ],
     "timedelta": timedelta(hours=1)
 }
