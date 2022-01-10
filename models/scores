@@ -1,0 +1,20 @@
+Training 0 - Temperature
+11 6.36s trainloss=0.01247 validloss=0.00812 r2_score=0.96890 
+
+Training 0 - Relative atmospheric humidity
+11 6.58s trainloss=0.06939 validloss=0.04698 r2_score=0.86642 
+
+Training 0 - Global Radiation
+12 6.04s trainloss=0.06002 validloss=0.01086 r2_score=0.90472 
+
+Training alklimaHeatPump - flow_temp
+20 6.02s trainloss=0.03798 validloss=0.05097 r2_score=0.94214 
+
+Training alklimaHeatPump - op_mode
+20 6.22s trainloss=0.07642 validloss=0.09710 r2_score=0.90194 
+
+Training smartMeter - power
+15 6.12s trainloss=0.13925 validloss=0.19246 r2_score=0.83316 
+
+Training co2sensor - co2
+20 6.00s trainloss=0.01656 validloss=0.01931 r2_score=0.97715

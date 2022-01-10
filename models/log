@@ -1,0 +1,147 @@
+Training 0 - Temperature
+ 1 6.12s trainloss=1.55033 validloss=0.28689 r2_score=-0.09848 
+ 2 7.10s trainloss=0.24554 validloss=0.04660 r2_score=0.82157 
+ 3 6.88s trainloss=0.04880 validloss=0.01850 r2_score=0.92917 
+ 4 6.65s trainloss=0.01925 validloss=0.01247 r2_score=0.95224 
+ 5 6.63s trainloss=0.01524 validloss=0.00860 r2_score=0.96705 
+ 6 6.72s trainloss=0.01470 validloss=0.00862 r2_score=0.96699 
+ 7 6.64s trainloss=0.01417 validloss=0.02222 r2_score=0.91494 
+ 8 6.24s trainloss=0.01371 validloss=0.00824 r2_score=0.96847 
+ 9 6.22s trainloss=0.01322 validloss=0.00829 r2_score=0.96825 
+10 6.23s trainloss=0.01282 validloss=0.00912 r2_score=0.96508 
+11 6.36s trainloss=0.01247 validloss=0.00812 r2_score=0.96890 
+12 6.59s trainloss=0.01226 validloss=0.00861 r2_score=0.96703 
+13 6.65s trainloss=0.01207 validloss=0.00830 r2_score=0.96821 
+14 6.89s trainloss=0.01193 validloss=0.00851 r2_score=0.96740 
+15 6.67s trainloss=0.01186 validloss=0.00840 r2_score=0.96782 
+16 6.68s trainloss=0.01208 validloss=0.00818 r2_score=0.96867 
+17 6.64s trainloss=0.01200 validloss=0.00831 r2_score=0.96817 
+18 6.64s trainloss=0.01198 validloss=0.00831 r2_score=0.96820 
+19 6.45s trainloss=0.01198 validloss=0.00832 r2_score=0.96814 
+20 5.95s trainloss=0.01197 validloss=0.00832 r2_score=0.96813 
+Training 0 - Relative atmospheric humidity
+ 1 5.63s trainloss=2.10388 validloss=0.70341 r2_score=-1.00002 
+ 2 6.04s trainloss=0.46370 validloss=0.16792 r2_score=0.52256 
+ 3 6.18s trainloss=0.13129 validloss=0.06314 r2_score=0.82047 
+ 4 6.32s trainloss=0.07792 validloss=0.05779 r2_score=0.83569 
+ 5 6.54s trainloss=0.07615 validloss=0.05904 r2_score=0.83214 
+ 6 5.79s trainloss=0.07461 validloss=0.04797 r2_score=0.86361 
+ 7 5.92s trainloss=0.07326 validloss=0.05694 r2_score=0.83811 
+ 8 6.40s trainloss=0.07231 validloss=0.04899 r2_score=0.86072 
+ 9 5.84s trainloss=0.07102 validloss=0.04884 r2_score=0.86114 
+10 6.60s trainloss=0.07009 validloss=0.05367 r2_score=0.84740 
+11 6.58s trainloss=0.06939 validloss=0.04698 r2_score=0.86642 
+12 6.47s trainloss=0.06875 validloss=0.04891 r2_score=0.86092 
+13 6.53s trainloss=0.06784 validloss=0.04831 r2_score=0.86264 
+14 6.41s trainloss=0.06761 validloss=0.04881 r2_score=0.86123 
+15 5.86s trainloss=0.06736 validloss=0.04868 r2_score=0.86160 
+16 5.77s trainloss=0.06835 validloss=0.04725 r2_score=0.86566 
+17 6.09s trainloss=0.06785 validloss=0.04796 r2_score=0.86364 
+18 6.26s trainloss=0.06771 validloss=0.04816 r2_score=0.86306 
+19 6.17s trainloss=0.06768 validloss=0.04822 r2_score=0.86289 
+20 6.13s trainloss=0.06766 validloss=0.04824 r2_score=0.86285 
+Training 0 - Global Radiation
+ 1 5.28s trainloss=0.52706 validloss=0.20524 r2_score=-0.80101 
+ 2 6.04s trainloss=0.31244 validloss=0.08318 r2_score=0.27007 
+ 3 6.22s trainloss=0.11454 validloss=0.03455 r2_score=0.69685 
+ 4 6.00s trainloss=0.07776 validloss=0.03836 r2_score=0.66338 
+ 5 6.02s trainloss=0.07032 validloss=0.02152 r2_score=0.81117 
+ 6 6.10s trainloss=0.06683 validloss=0.01222 r2_score=0.89274 
+ 7 6.33s trainloss=0.06545 validloss=0.01564 r2_score=0.86280 
+ 8 6.14s trainloss=0.06397 validloss=0.01173 r2_score=0.89704 
+ 9 6.13s trainloss=0.06281 validloss=0.01131 r2_score=0.90077 
+10 6.25s trainloss=0.06151 validloss=0.01190 r2_score=0.89560 
+11 6.02s trainloss=0.06080 validloss=0.01153 r2_score=0.89884 
+12 6.04s trainloss=0.06002 validloss=0.01086 r2_score=0.90472 
+13 6.17s trainloss=0.05926 validloss=0.01135 r2_score=0.90036 
+14 6.12s trainloss=0.05886 validloss=0.01168 r2_score=0.89755 
+15 6.10s trainloss=0.05862 validloss=0.01162 r2_score=0.89802 
+16 6.10s trainloss=0.05896 validloss=0.01097 r2_score=0.90371 
+17 6.05s trainloss=0.05884 validloss=0.01127 r2_score=0.90112 
+18 6.33s trainloss=0.05876 validloss=0.01142 r2_score=0.89977 
+19 6.17s trainloss=0.05873 validloss=0.01150 r2_score=0.89909 
+20 6.19s trainloss=0.05871 validloss=0.01151 r2_score=0.89899 
+Training alklimaHeatPump - flow_temp
+ 1 5.66s trainloss=0.26102 validloss=0.23070 r2_score=0.73811 
+ 2 5.62s trainloss=0.12554 validloss=0.11746 r2_score=0.86666 
+ 3 5.79s trainloss=0.07247 validloss=0.06970 r2_score=0.92087 
+ 4 6.07s trainloss=0.05667 validloss=0.06211 r2_score=0.92949 
+ 5 6.19s trainloss=0.05151 validloss=0.06926 r2_score=0.92137 
+ 6 6.12s trainloss=0.04784 validloss=0.05709 r2_score=0.93520 
+ 7 6.10s trainloss=0.04582 validloss=0.05333 r2_score=0.93946 
+ 8 6.19s trainloss=0.04430 validloss=0.05721 r2_score=0.93505 
+ 9 6.15s trainloss=0.04255 validloss=0.06192 r2_score=0.92971 
+10 6.24s trainloss=0.04187 validloss=0.05260 r2_score=0.94029 
+11 6.21s trainloss=0.04077 validloss=0.05163 r2_score=0.94138 
+12 6.13s trainloss=0.03980 validloss=0.05372 r2_score=0.93902 
+13 6.24s trainloss=0.03904 validloss=0.05153 r2_score=0.94151 
+14 6.20s trainloss=0.03842 validloss=0.05102 r2_score=0.94208 
+15 6.10s trainloss=0.03807 validloss=0.05098 r2_score=0.94212 
+16 6.28s trainloss=0.03800 validloss=0.05098 r2_score=0.94213 
+17 6.18s trainloss=0.03801 validloss=0.05098 r2_score=0.94213 
+18 6.11s trainloss=0.03800 validloss=0.05098 r2_score=0.94213 
+19 6.11s trainloss=0.03799 validloss=0.05097 r2_score=0.94214 
+20 6.02s trainloss=0.03798 validloss=0.05097 r2_score=0.94214 
+Training alklimaHeatPump - op_mode
+ 1 5.07s trainloss=1.61454 validloss=0.33559 r2_score=0.66109 
+ 2 6.01s trainloss=0.23008 validloss=0.21623 r2_score=0.78163 
+ 3 6.10s trainloss=0.12430 validloss=0.13688 r2_score=0.86176 
+ 4 6.12s trainloss=0.08936 validloss=0.10570 r2_score=0.89325 
+ 5 6.13s trainloss=0.08148 validloss=0.09836 r2_score=0.90067 
+ 6 6.16s trainloss=0.07995 validloss=0.09787 r2_score=0.90116 
+ 7 6.12s trainloss=0.07926 validloss=0.10100 r2_score=0.89800 
+ 8 6.07s trainloss=0.07841 validloss=0.09742 r2_score=0.90161 
+ 9 6.08s trainloss=0.07759 validloss=0.09723 r2_score=0.90180 
+10 5.96s trainloss=0.07688 validloss=0.09731 r2_score=0.90172 
+11 5.97s trainloss=0.07673 validloss=0.09767 r2_score=0.90136 
+12 5.99s trainloss=0.07606 validloss=0.09937 r2_score=0.89964 
+13 6.12s trainloss=0.07567 validloss=0.10031 r2_score=0.89869 
+14 6.09s trainloss=0.07551 validloss=0.09856 r2_score=0.90046 
+15 6.07s trainloss=0.07533 validloss=0.09852 r2_score=0.90050 
+16 6.05s trainloss=0.07721 validloss=0.09719 r2_score=0.90184 
+17 6.13s trainloss=0.07681 validloss=0.09712 r2_score=0.90192 
+18 6.19s trainloss=0.07655 validloss=0.09709 r2_score=0.90194 
+19 6.16s trainloss=0.07645 validloss=0.09710 r2_score=0.90194 
+20 6.22s trainloss=0.07642 validloss=0.09710 r2_score=0.90194 
+Training smartMeter - power
+ 1 6.06s trainloss=0.92837 validloss=0.62007 r2_score=0.46247 
+ 2 6.21s trainloss=0.35310 validloss=0.37590 r2_score=0.67413 
+ 3 6.06s trainloss=0.22737 validloss=0.26605 r2_score=0.76936 
+ 4 6.10s trainloss=0.17382 validloss=0.21957 r2_score=0.80965 
+ 5 6.15s trainloss=0.15836 validloss=0.20675 r2_score=0.82077 
+ 6 6.25s trainloss=0.15235 validloss=0.20494 r2_score=0.82234 
+ 7 6.04s trainloss=0.14955 validloss=0.20201 r2_score=0.82487 
+ 8 6.04s trainloss=0.14718 validloss=0.19634 r2_score=0.82979 
+ 9 6.10s trainloss=0.14536 validloss=0.20163 r2_score=0.82521 
+10 6.01s trainloss=0.14413 validloss=0.19517 r2_score=0.83081 
+11 6.15s trainloss=0.14274 validloss=0.19538 r2_score=0.83062 
+12 6.14s trainloss=0.14170 validloss=0.19585 r2_score=0.83021 
+13 6.30s trainloss=0.14045 validloss=0.19270 r2_score=0.83295 
+14 6.13s trainloss=0.13958 validloss=0.19258 r2_score=0.83305 
+15 6.12s trainloss=0.13925 validloss=0.19246 r2_score=0.83316 
+16 6.14s trainloss=0.13916 validloss=0.19250 r2_score=0.83312 
+17 6.25s trainloss=0.13917 validloss=0.19253 r2_score=0.83310 
+18 6.05s trainloss=0.13916 validloss=0.19254 r2_score=0.83309 
+19 6.12s trainloss=0.13914 validloss=0.19255 r2_score=0.83308 
+20 6.10s trainloss=0.13912 validloss=0.19255 r2_score=0.83308 
+Training co2sensor - co2
+ 1 5.74s trainloss=0.01992 validloss=0.02303 r2_score=0.97275 
+ 2 6.31s trainloss=0.01865 validloss=0.02311 r2_score=0.97266 
+ 3 6.28s trainloss=0.01865 validloss=0.02239 r2_score=0.97351 
+ 4 6.20s trainloss=0.01835 validloss=0.02142 r2_score=0.97465 
+ 5 6.19s trainloss=0.01770 validloss=0.02006 r2_score=0.97627 
+ 6 6.28s trainloss=0.01724 validloss=0.02049 r2_score=0.97576 
+ 7 6.16s trainloss=0.01710 validloss=0.01999 r2_score=0.97634 
+ 8 6.12s trainloss=0.01693 validloss=0.01988 r2_score=0.97648 
+ 9 6.17s trainloss=0.01680 validloss=0.01957 r2_score=0.97684 
+10 6.18s trainloss=0.01668 validloss=0.01933 r2_score=0.97713 
+11 6.22s trainloss=0.01667 validloss=0.01947 r2_score=0.97697 
+12 6.31s trainloss=0.01662 validloss=0.01941 r2_score=0.97704 
+13 5.74s trainloss=0.01657 validloss=0.01941 r2_score=0.97704 
+14 5.75s trainloss=0.01653 validloss=0.01941 r2_score=0.97704 
+15 6.00s trainloss=0.01650 validloss=0.01941 r2_score=0.97703 
+16 6.10s trainloss=0.01661 validloss=0.01932 r2_score=0.97714 
+17 6.07s trainloss=0.01659 validloss=0.01932 r2_score=0.97714 
+18 5.80s trainloss=0.01658 validloss=0.01931 r2_score=0.97715 
+19 5.81s trainloss=0.01657 validloss=0.01931 r2_score=0.97715 
+20 6.00s trainloss=0.01656 validloss=0.01931 r2_score=0.97715 
